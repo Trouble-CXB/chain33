@@ -68,32 +68,45 @@ func isPrimaryIndex(indexName string) bool {
 //direction 方向
 func (query *Query) ListIndex(indexName string, prefix []byte, primaryKey []byte, count, direction int32) (rows []*Row, err error) {
 	if isPrimaryIndex(indexName) || indexName == query.table.getOpt().Primary {
-		log.Error("table.query.ListIndex", "indexName", indexName, "prefix", string(prefix), "primaryKey", string(primaryKey), "count", count, "dir", direction)
+		log.Error("table.query.ListIndex", "indexName",indexName, "prefix", string(prefix), "primaryKey", string(primaryKey), "count", count, "dir", direction)
 		return query.listPrimary(prefix, primaryKey, count, direction)
 	}
-	keyPrefix := append(query.table.indexPrefix(indexName), prefix...)
-	var key []byte
+	p := query.table.indexPrefix(indexName)
+	log.Error("ListIndex", "indexPrefix", string(p))
+	var k []byte
 	if len(primaryKey) > 0 {
+		log.Error("ListIndex", "indexPrefix", 1)
 		row, err := query.table.GetData(primaryKey)
 		if err != nil {
 			return nil, err
 		}
-		indexKey, err := query.table.index(row, indexName)
+		log.Error("ListIndex", "indexPrefix", 2)
+		key, err := query.table.index(row, indexName)
 		if err != nil {
 			return nil, err
 		}
-		////assert prefix
+		log.Error("ListIndex", "indexPrefix", 3)
+		//如果存在prefix
 		if prefix != nil {
-			cp := commonPrefix(prefix, indexKey)
-			if len(cp) != len(prefix) {
+			log.Error("ListIndex", "indexPrefix", 4.1, "p1", prefix, "key", key)
+			p2 := commonPrefix(prefix, key)
+			log.Error("ListIndex", "indexPrefix", 4.2, "p1", string(prefix), "key", string(key), "p2", string(p2))
+			if len(p2) != len(prefix) {
 				return nil, types.ErrNotFound
 			}
+			log.Error("ListIndex", "indexPrefix", 4.3)
+			p = append(p, p2...)
+			log.Error("ListIndex", "indexPrefix", 4.4, "p", string(p))
 		}
-		log.Error("ListIndex", "indexPrefix", 4.2, "p1", string(prefix), "key", string(primaryKey), "indexKey", string(indexKey), "row.Primary", row.Primary)
-		key = query.table.getIndexKey(indexName, indexKey, row.Primary)
+		k = query.table.getIndexKey(indexName, key, row.Primary)
+		log.Error("ListIndex", "indexPrefix", 5, "p", string(k))
+	} else {
+		//这个情况下 k == nil
+		p = append(p, prefix...)
+		log.Error("ListIndex", "indexPrefix", 6, "p", string(p))
 	}
-	log.Error("ListIndex", "indexPrefix", 7, "p", string(keyPrefix), "k", string(key), "count", count, "d", direction)
-	values, err := query.kvdb.List(keyPrefix, key, count, direction)
+	log.Error("ListIndex", "indexPrefix", 7, "p", string(p), "k", string(k), "count", count, "d", direction)
+	values, err := query.kvdb.List(p, k, count, direction)
 	if err != nil {
 		return nil, err
 	}
@@ -107,26 +120,28 @@ func (query *Query) ListIndex(indexName string, prefix []byte, primaryKey []byte
 	if len(rows) == 0 {
 		return nil, types.ErrNotFound
 	}
+	log.Error("ListIndex", "indexPrefix", 8, "len(rows)", len(rows))
 	return rows, nil
 }
 
 //ListPrimary list primary data
 func (query *Query) listPrimary(prefix []byte, primaryKey []byte, count, direction int32) (rows []*Row, err error) {
-	metaPrefix := query.table.primaryPrefix()
-	var key []byte
+	p := query.table.primaryPrefix()
+	var k []byte
 	if primaryKey != nil {
-		//asset primary key prefix
 		if prefix != nil {
-			cp := commonPrefix(prefix, primaryKey)
-			if len(cp) != len(prefix) {
+			p2 := commonPrefix(prefix, primaryKey)
+			if len(p2) != len(prefix) {
 				return nil, types.ErrNotFound
 			}
+			p = append(p, p2...)
 		}
-		key = append(metaPrefix, primaryKey...)
+		k = append(p, primaryKey...)
+	} else {
+		p = append(p, prefix...)
 	}
-	keyPrefix := append(metaPrefix, prefix...)
-	log.Error("ListIndex", "indexPrefix", 88, "p", string(keyPrefix), "k", string(key), "count", count, "d", direction)
-	values, err := query.kvdb.List(keyPrefix, key, count, direction)
+	log.Error("table.query.ListIndex.listPrimary", "prefix", string(prefix), "primaryKey", string(primaryKey), "count", count, "dir", direction, "prefix", string(p), "primaryKey", string(k))
+	values, err := query.kvdb.List(p, k, count, direction)
 	if err != nil {
 		return nil, err
 	}

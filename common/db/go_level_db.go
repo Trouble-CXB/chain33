@@ -481,12 +481,15 @@ func (dbit *goLevelDBIt) Next() bool {
 
 //Seek seek key
 func (dbit *goLevelDBIt) Seek(key []byte) bool {
-
 	exist := dbit.Iterator.Seek(key)
+	log.Error("goLevelDBIt Seek1", "key", string(key), "find?", exist)
 	dbKey := dbit.Key()
+	log.Error("goLevelDBIt Seek2", "key", string(key), "find?", exist, "dbkey", string(dbKey))
 	if dbit.reverse && !bytes.Equal(dbKey, key) {
+		log.Error("goLevelDBIt Seek3", "key", string(key), "find?", exist, "dbkey", string(dbKey), "reverse", "prev")
 		return dbit.Iterator.Prev() && dbit.Valid()
 	}
+	log.Error("goLevelDBIt Seek4", "key", string(key), "find?", exist, "dbkey", string(dbKey))
 	return exist
 }
 

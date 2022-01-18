@@ -4,6 +4,7 @@ package db
 
 import (
 	"errors"
+	log "github.com/33cn/chain33/common/log/log15"
 
 	"github.com/syndtr/goleveldb/leveldb/comparer"
 )
@@ -87,12 +88,16 @@ func (i *mergedIterator) Seek(key []byte) bool {
 		return false
 	}
 	for x, iter := range i.iters {
+		log.Error("mergedIterator Seek", "x", x)
 		switch {
 		case iter.Seek(key):
+			log.Error("mergedIterator Seek", "x", x, "find", string(iter.Key()))
 			i.keys[x] = assertKey(iter.Key())
 		case i.iterErr(iter):
+			log.Error("mergedIterator Seek", "x", x, "find-err", iter.Error())
 			return false
 		default:
+			log.Error("mergedIterator Seek", "x", x, "find", "nil")
 			i.keys[x] = nil
 		}
 	}
